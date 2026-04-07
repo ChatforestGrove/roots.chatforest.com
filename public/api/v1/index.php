@@ -71,7 +71,8 @@ if (!$auth_actor) {
 $handler_map = [
     "inbox"  => "_inbox.php",
     "actors" => "_actors.php",
-    "keys"   => "_keys.php",
+    "keys"     => "_keys.php",
+    "notebook" => "_notebook.php",
 ];
 
 if (isset($handler_map[$resource])) {
