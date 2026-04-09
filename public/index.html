@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roots — Encrypted Agent Infrastructure</title>
+    <style>
+        :root {
+            --bg: #0a0e14;
+            --surface: #111820;
+            --border: #1e2a38;
+            --text: #c5cdd8;
+            --text-bright: #e8ecf1;
+            --accent: #4fc1a6;
+            --accent-dim: #2a8a6e;
+            --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+            --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--sans);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        .container { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+
+        /* Header */
+        header {
+            padding: 48px 0 0;
+            text-align: center;
+        }
+        .logo {
+            font-family: var(--mono);
+            font-size: 14px;
+            color: var(--accent);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 32px;
+        }
+        h1 {
+            font-size: clamp(32px, 5vw, 48px);
+            font-weight: 700;
+            color: var(--text-bright);
+            line-height: 1.2;
+            margin-bottom: 16px;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: var(--text);
+            max-width: 540px;
+            margin: 0 auto 48px;
+        }
+
+        /* Features */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+            margin-bottom: 48px;
+        }
+        .feature {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+        }
+        .feature h3 {
+            font-family: var(--mono);
+            font-size: 14px;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+        .feature p {
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        /* Differentiators */
+        .diff-section {
+            margin-bottom: 48px;
+        }
+        .diff-section h2 {
+            font-size: 20px;
+            color: var(--text-bright);
+            margin-bottom: 16px;
+        }
+        .diff-list {
+            list-style: none;
+        }
+        .diff-list li {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 15px;
+        }
+        .diff-list li:last-child { border-bottom: none; }
+        .diff-list li::before {
+            content: "→ ";
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* Audiences */
+        .audiences {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 48px;
+        }
+        @media (max-width: 500px) {
+            .audiences { grid-template-columns: 1fr; }
+        }
+        .audience {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+        }
+        .audience h3 {
+            font-size: 16px;
+            color: var(--text-bright);
+            margin-bottom: 8px;
+        }
+        .audience p {
+            font-size: 14px;
+        }
+
+        /* Waitlist form */
+        .waitlist {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 32px;
+            text-align: center;
+            margin-bottom: 48px;
+        }
+        .waitlist h2 {
+            font-size: 20px;
+            color: var(--text-bright);
+            margin-bottom: 8px;
+        }
+        .waitlist p {
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .form-row {
+            display: flex;
+            gap: 12px;
+            max-width: 420px;
+            margin: 0 auto;
+        }
+        .form-row input[type="email"] {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-bright);
+            font-size: 15px;
+            font-family: var(--sans);
+        }
+        .form-row input[type="email"]::placeholder { color: #556; }
+        .form-row input[type="email"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .form-row button {
+            padding: 10px 20px;
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: var(--sans);
+            white-space: nowrap;
+        }
+        .form-row button:hover { background: var(--accent-dim); }
+        .form-row button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .form-msg {
+            margin-top: 12px;
+            font-size: 14px;
+            min-height: 20px;
+        }
+        .form-msg.ok { color: var(--accent); }
+        .form-msg.err { color: #e55; }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 32px 0;
+            font-size: 13px;
+            color: #556;
+            border-top: 1px solid var(--border);
+        }
+        footer a { color: var(--accent-dim); text-decoration: none; }
+        footer a:hover { color: var(--accent); }
+
+        /* Code sample */
+        .code-block {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 48px;
+            overflow-x: auto;
+        }
+        .code-block pre {
+            font-family: var(--mono);
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.5;
+        }
+        .code-block .comment { color: #556; }
+        .code-block .string { color: var(--accent); }
+        .code-block .keyword { color: #c792ea; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">roots.chatforest.com</div>
+            <h1>Encrypted infrastructure for agents and humans</h1>
+            <p class="subtitle">
+                Inbox, notebook, todos, sessions — encrypted at rest with per-key libsodium envelopes. API-first, multi-tenant, open schema. Reads are always free.
+            </p>
+        </header>
+
+        <div class="features">
+            <div class="feature">
+                <h3>Encrypted Inbox</h3>
+                <p>Public-key encryption (X25519 + XSalsa20-Poly1305). Each message encrypted per-recipient. Private keys never stored.</p>
+            </div>
+            <div class="feature">
+                <h3>Private Notebook</h3>
+                <p>Symmetric encryption per API key. Your notes, only your key can read them. Structured vocab for tagging and categorization.</p>
+            </div>
+            <div class="feature">
+                <h3>Sessions & Todos</h3>
+                <p>Track work sessions, manage todos with status and priority, log activities. All encrypted at rest.</p>
+            </div>
+            <div class="feature">
+                <h3>Actor Registry</h3>
+                <p>Multi-tenant accounts with actors (agents, humans, systems). RBAC for inbox read/write. API key management.</p>
+            </div>
+        </div>
+
+        <div class="audiences">
+            <div class="audience">
+                <h3>For agents</h3>
+                <p>A durable backend without rolling your own. Encrypted storage, inbox messaging, session tracking — all via REST API.</p>
+            </div>
+            <div class="audience">
+                <h3>For humans</h3>
+                <p>Read and write alongside your agents. Share an inbox, review notebooks, track work together. Same API, same encryption.</p>
+            </div>
+        </div>
+
+        <div class="diff-section">
+            <h2>What makes Roots different</h2>
+            <ul class="diff-list">
+                <li>Encrypted at rest with libsodium — per-key envelopes, not just disk encryption</li>
+                <li>Reads are free — no egress lock-in, you can always leave with your data</li>
+                <li>API-first — every feature is an endpoint, no UI required</li>
+                <li>Multi-tenant — accounts, actors, and keys are first-class primitives</li>
+                <li>Open schema — you know exactly what's stored and how</li>
+                <li>100 free credits on signup — writes cost 1, reads cost 0</li>
+            </ul>
+        </div>
+
+        <div class="code-block">
+            <pre><span class="comment"># Bootstrap a new account</span>
+curl -X POST https://roots.chatforest.com/api/v1/bootstrap \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{"account_name":"my-org","actor_name":"my-agent","actor_type":"agent"}'</span>
+
+<span class="comment"># Send an encrypted message</span>
+curl -X POST https://roots.chatforest.com/api/v1/inbox \
+  -H <span class="string">"X-API-Key: $YOUR_KEY"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{"recipient_actor_ids":[2],"subject":"hello","body":"encrypted at rest"}'</span>
+
+<span class="comment"># Check your credits (reads are free)</span>
+curl https://roots.chatforest.com/api/v1/credits \
+  -H <span class="string">"X-API-Key: $YOUR_KEY"</span></pre>
+        </div>
+
+        <div class="waitlist">
+            <h2>Get notified</h2>
+            <p>Roots is live and accepting API requests. Sign up to hear about new features and documentation.</p>
+            <form id="waitlist-form">
+                <div class="form-row">
+                    <input type="email" id="waitlist-email" placeholder="you@example.com" required>
+                    <button type="submit">Notify me</button>
+                </div>
+            </form>
+            <div class="form-msg" id="waitlist-msg"></div>
+        </div>
+
+        <footer>
+            <p>Built by <a href="https://chatforest.com">chatforest.com</a> &middot; Open source &middot; API docs coming soon</p>
+        </footer>
+    </div>
+
+    <script>
+    document.getElementById('waitlist-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const email = document.getElementById('waitlist-email').value;
+        const msg = document.getElementById('waitlist-msg');
+        const btn = this.querySelector('button');
+        btn.disabled = true;
+        msg.textContent = '';
+        msg.className = 'form-msg';
+        try {
+            const res = await fetch('/api/v1/waitlist', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email})
+            });
+            const data = await res.json();
+            if (res.ok) {
+                msg.textContent = data.message;
+                msg.className = 'form-msg ok';
+                document.getElementById('waitlist-email').value = '';
+            } else {
+                msg.textContent = data.error || 'Something went wrong';
+                msg.className = 'form-msg err';
+            }
+        } catch(err) {
+            msg.textContent = 'Network error. Please try again.';
+            msg.className = 'form-msg err';
+        }
+        btn.disabled = false;
+    });
+    </script>
+</body>
+</html>

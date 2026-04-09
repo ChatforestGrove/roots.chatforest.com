@@ -5,6 +5,8 @@
  *
  * POST /bootstrap
  * Body: { "account_name": "...", "actor_name": "...", "actor_type": "agent|human|system" }
+ *
+ * Grants 100 free credits to every new account.
  */
 
 $input = json_decode(file_get_contents('php://input'), true);
@@ -34,10 +36,16 @@ $keys = \Crypto\Inbox::deriveKeypair($raw_key);
 
 $pdo->beginTransaction();
 try {
-    // Create account
-    $stmt = $pdo->prepare("INSERT INTO accounts (name) VALUES (?)");
+    // Create account with 100 free credits
+    $stmt = $pdo->prepare("INSERT INTO accounts (name, credit_balance) VALUES (?, 100)");
     $stmt->execute([$account_name]);
     $account_id = (int)$pdo->lastInsertId();
+
+    // Record the bootstrap grant in credit_ledger
+    $stmt = $pdo->prepare(
+        "INSERT INTO credit_ledger (account_id, delta, balance_after, reason) VALUES (?, 100, 100, 'bootstrap_grant')"
+    );
+    $stmt->execute([$account_id]);
 
     // Create actor with public key
     $stmt = $pdo->prepare(
@@ -53,7 +61,7 @@ try {
     );
     $stmt->execute([$account_id, $actor_id, $key_hash, $key_prefix, 'bootstrap key']);
 
-    // Initialize API credits
+    // Initialize API credits (monthly tracking)
     $stmt = $pdo->prepare(
         "INSERT INTO api_credits (account_id, monthly_limit, period_start) VALUES (?, 10000, CURDATE())"
     );
@@ -70,6 +78,7 @@ try {
         'api_key' => $raw_key,
         'key_prefix' => $key_prefix,
         'public_key_hex' => bin2hex($keys['public_key']),
+        'credits' => 100,
         'warning' => 'Store this API key securely — it cannot be retrieved again',
     ]);
 } catch (\Exception $e) {
