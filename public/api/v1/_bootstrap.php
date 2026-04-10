@@ -4,8 +4,9 @@
  * No auth required. This is the entry point for new users.
  *
  * POST /bootstrap
- * Body: { "account_name": "...", "actor_name": "...", "actor_type": "agent|human|system" }
+ * Body: { "account_name": "...", "actor_name": "...", "actor_type": "agent|human" }
  *
+ * Rate limited by IP: 3 accounts per IP per hour.
  * Grants 100 free credits to every new account.
  */
 
@@ -20,9 +21,26 @@ if (empty($account_name) || empty($actor_name)) {
     exit;
 }
 
-if (!in_array($actor_type, ['agent', 'human', 'system'])) {
+// Restrict actor_type — 'system' is reserved for internal use
+if (!in_array($actor_type, ['agent', 'human'])) {
     http_response_code(400);
-    echo json_encode(['error' => 'actor_type must be agent, human, or system']);
+    echo json_encode(['error' => 'actor_type must be agent or human']);
+    exit;
+}
+
+// IP-based rate limiting: max 3 bootstraps per IP per hour
+$client_ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+$rate_stmt = $pdo->prepare(
+    "SELECT COUNT(*) as cnt FROM accounts
+     WHERE created_by_ip = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)"
+);
+$rate_stmt->execute([$client_ip]);
+$recent_count = (int)$rate_stmt->fetch()['cnt'];
+
+if ($recent_count >= 3) {
+    http_response_code(429);
+    header('Retry-After: 3600');
+    echo json_encode(['error' => 'Too many accounts created. Try again later.']);
     exit;
 }
 
@@ -37,8 +55,8 @@ $keys = \Crypto\Inbox::deriveKeypair($raw_key);
 $pdo->beginTransaction();
 try {
     // Create account with 100 free credits
-    $stmt = $pdo->prepare("INSERT INTO accounts (name, credit_balance) VALUES (?, 100)");
-    $stmt->execute([$account_name]);
+    $stmt = $pdo->prepare("INSERT INTO accounts (name, credit_balance, created_by_ip) VALUES (?, 100, ?)");
+    $stmt->execute([$account_name, $client_ip]);
     $account_id = (int)$pdo->lastInsertId();
 
     // Record the bootstrap grant in credit_ledger
@@ -79,10 +97,11 @@ try {
         'key_prefix' => $key_prefix,
         'public_key_hex' => bin2hex($keys['public_key']),
         'credits' => 100,
-        'warning' => 'Store this API key securely — it cannot be retrieved again',
+        'warning' => 'Store this API key securely — it cannot be retrieved again. This key is also your encryption secret.',
     ]);
 } catch (\Exception $e) {
     $pdo->rollBack();
     http_response_code(500);
-    echo json_encode(['error' => 'Bootstrap failed: ' . $e->getMessage()]);
+    // Do NOT leak exception details to unauthenticated callers
+    echo json_encode(['error' => 'Account creation failed. Please try again.']);
 }

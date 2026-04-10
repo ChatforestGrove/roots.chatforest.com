@@ -240,7 +240,7 @@ switch ($method) {
         } catch (\Exception $e) {
             $pdo->rollBack();
             http_response_code(500);
-            echo json_encode(["error" => "Failed to create todo: " . $e->getMessage()]);
+            echo json_encode(["error" => "Failed to create todo: " ]);
         }
         break;
 
@@ -345,7 +345,7 @@ switch ($method) {
         } catch (\Exception $e) {
             $pdo->rollBack();
             http_response_code(500);
-            echo json_encode(["error" => "Failed to update todo: " . $e->getMessage()]);
+            echo json_encode(["error" => "Failed to update todo: " ]);
         }
         break;
 
@@ -377,7 +377,7 @@ switch ($method) {
         } catch (\Exception $e) {
             $pdo->rollBack();
             http_response_code(500);
-            echo json_encode(["error" => "Failed to delete todo: " . $e->getMessage()]);
+            echo json_encode(["error" => "Failed to delete todo: " ]);
         }
         break;
 

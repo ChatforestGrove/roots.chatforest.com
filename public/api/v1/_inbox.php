@@ -16,13 +16,30 @@ $caller_keys = \Crypto\Inbox::deriveKeypair($raw_key);
 $caller_secret = $caller_keys['secret_key'];
 $caller_public = $caller_keys['public_key'];
 
+/**
+ * Decrypt subject from per-recipient encrypted copy, falling back to
+ * plaintext messages.subject for pre-migration messages.
+ */
+function decryptSubject($row, $caller_secret) {
+    if (!empty($row['subject_ciphertext']) && !empty($row['subject_nonce'])) {
+        $plain = \Crypto\Inbox::decrypt(
+            $row['subject_ciphertext'], $row['subject_nonce'],
+            $row['sender_public_key'], $caller_secret
+        );
+        return $plain !== false ? $plain : '[SUBJECT DECRYPTION FAILED]';
+    }
+    // Fallback for pre-migration messages with plaintext subject
+    return $row['subject'] ?? '';
+}
+
 switch ($method) {
     case 'GET':
         if ($id_param) {
             // GET /inbox/{message_id} — single message
             $stmt = $pdo->prepare(
                 "SELECT mr.recipient_id, mr.message_id, m.sender_actor_id, a.name as sender_name,
-                        m.subject, mr.ciphertext, mr.nonce, mr.status, mr.read_at, m.created_at,
+                        m.subject, mr.subject_ciphertext, mr.subject_nonce,
+                        mr.ciphertext, mr.nonce, mr.status, mr.read_at, m.created_at,
                         sa.public_key as sender_public_key
                  FROM message_recipients mr
                  JOIN messages m ON m.message_id = mr.message_id
@@ -48,7 +65,7 @@ switch ($method) {
                 'message_id' => (int)$row['message_id'],
                 'sender_actor_id' => (int)$row['sender_actor_id'],
                 'sender_name' => $row['sender_name'],
-                'subject' => $row['subject'],
+                'subject' => decryptSubject($row, $caller_secret),
                 'body' => $plaintext !== false ? $plaintext : '[DECRYPTION FAILED]',
                 'status' => $row['status'],
                 'read_at' => $row['read_at'],
@@ -73,12 +90,21 @@ switch ($method) {
             } else {
                 $where .= " AND mr.status != 'deleted'";
             }
+
+            // Count total (before adding limit/offset to params)
+            $count_stmt = $pdo->prepare(
+                "SELECT COUNT(*) as total FROM message_recipients mr WHERE $where"
+            );
+            $count_stmt->execute($params);
+            $total = (int)$count_stmt->fetch()['total'];
+
             $params[] = $limit;
             $params[] = $offset;
 
             $stmt = $pdo->prepare(
                 "SELECT mr.recipient_id, mr.message_id, m.sender_actor_id, a.name as sender_name,
-                        m.subject, mr.ciphertext, mr.nonce, mr.status, mr.read_at, m.created_at,
+                        m.subject, mr.subject_ciphertext, mr.subject_nonce,
+                        mr.ciphertext, mr.nonce, mr.status, mr.read_at, m.created_at,
                         sa.public_key as sender_public_key
                  FROM message_recipients mr
                  JOIN messages m ON m.message_id = mr.message_id
@@ -102,27 +128,12 @@ switch ($method) {
                     'message_id' => (int)$row['message_id'],
                     'sender_actor_id' => (int)$row['sender_actor_id'],
                     'sender_name' => $row['sender_name'],
-                    'subject' => $row['subject'],
+                    'subject' => decryptSubject($row, $caller_secret),
                     'body' => $plaintext !== false ? $plaintext : '[DECRYPTION FAILED]',
                     'status' => $row['status'],
                     'created_at' => $row['created_at'],
                 ];
             }
-
-            // Count total
-            $count_stmt = $pdo->prepare(
-                "SELECT COUNT(*) FROM message_recipients mr
-                 JOIN messages m ON m.message_id = mr.message_id
-                 WHERE " . str_replace([" LIMIT ? OFFSET ?"], [''], $where)
-            );
-            // Re-run with just the where params (no limit/offset)
-            $count_params = array_slice($params, 0, -2);
-            $count_stmt = $pdo->prepare(
-                "SELECT COUNT(*) as total FROM message_recipients mr WHERE mr.recipient_actor_id = ?" .
-                ($status_filter !== 'all' ? " AND mr.status = ?" : " AND mr.status != 'deleted'")
-            );
-            $count_stmt->execute($count_params);
-            $total = (int)$count_stmt->fetch()['total'];
 
             echo json_encode([
                 'messages' => $messages,
@@ -182,31 +193,47 @@ switch ($method) {
 
         $pdo->beginTransaction();
         try {
-            // Create message record
+            // Create message record — subject stored as NULL (encrypted per-recipient)
             $stmt = $pdo->prepare(
                 "INSERT INTO messages (sender_actor_id, subject) VALUES (?, ?)"
             );
-            $stmt->execute([$auth_actor['actor_id'], $subject]);
+            $stmt->execute([$auth_actor['actor_id'], null]);
             $message_id = (int)$pdo->lastInsertId();
 
-            // Encrypt and store one copy per recipient
+            // Encrypt and store one copy per recipient (body + subject)
             $insert_stmt = $pdo->prepare(
-                "INSERT INTO message_recipients (message_id, recipient_actor_id, ciphertext, nonce)
-                 VALUES (?, ?, ?, ?)"
+                "INSERT INTO message_recipients
+                    (message_id, recipient_actor_id, ciphertext, nonce, subject_ciphertext, subject_nonce)
+                 VALUES (?, ?, ?, ?, ?, ?)"
             );
 
             $delivered_to = [];
             foreach ($recipients as $recipient) {
-                $encrypted = \Crypto\Inbox::encrypt(
+                // Encrypt body
+                $encrypted_body = \Crypto\Inbox::encrypt(
                     $body,
                     $recipient['public_key'],
                     $caller_secret
                 );
+                // Encrypt subject (if provided)
+                $enc_subject = null;
+                $enc_subject_nonce = null;
+                if ($subject !== null) {
+                    $encrypted_subj = \Crypto\Inbox::encrypt(
+                        $subject,
+                        $recipient['public_key'],
+                        $caller_secret
+                    );
+                    $enc_subject = $encrypted_subj['ciphertext'];
+                    $enc_subject_nonce = $encrypted_subj['nonce'];
+                }
                 $insert_stmt->execute([
                     $message_id,
                     $recipient['actor_id'],
-                    $encrypted['ciphertext'],
-                    $encrypted['nonce'],
+                    $encrypted_body['ciphertext'],
+                    $encrypted_body['nonce'],
+                    $enc_subject,
+                    $enc_subject_nonce,
                 ]);
                 $delivered_to[] = [
                     'actor_id' => (int)$recipient['actor_id'],
@@ -220,12 +247,12 @@ switch ($method) {
             echo json_encode([
                 'message_id' => $message_id,
                 'delivered_to' => $delivered_to,
-                'subject' => $subject,
+                'encrypted_fields' => ['body', 'subject'],
             ]);
         } catch (\Exception $e) {
             $pdo->rollBack();
             http_response_code(500);
-            echo json_encode(['error' => 'Failed to send message: ' . $e->getMessage()]);
+            echo json_encode(['error' => 'Failed to send message']);
         }
         break;
 
@@ -245,7 +272,6 @@ switch ($method) {
             break;
         }
 
-        $read_at = $new_status === 'read' ? "NOW()" : "read_at";
         $stmt = $pdo->prepare(
             "UPDATE message_recipients SET status = ?, read_at = IF(? = 'read' AND read_at IS NULL, NOW(), read_at)
              WHERE recipient_id = ? AND recipient_actor_id = ?"

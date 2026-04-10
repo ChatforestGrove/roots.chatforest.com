@@ -29,6 +29,11 @@
         <h1>Keys</h1>
         <p class="subtitle">Manage API keys for actors in your account.</p>
 
+        <div style="background: #2a1a1a; border: 1px solid #5a3333; border-radius: 6px; padding: 16px; margin: 16px 0;">
+            <strong style="color: #ff6b6b;">Your API key is your encryption secret.</strong>
+            <p style="margin: 8px 0 0;">All encryption keys are derived from your API key. Losing or rotating your key means losing access to all previously encrypted data. There is no recovery mechanism. See <a href="/docs/concepts.html#encryption">Encryption Model</a>.</p>
+        </div>
+
         <div class="note">
             <strong>Bootstrap:</strong> Your first API key is created via <code>POST /bootstrap</code> (no auth required). See <a href="/docs/getting-started.html">Getting Started</a>.
         </div>
@@ -48,11 +53,11 @@
     "key_id": 1,
     "actor_id": 14,
     "actor_name": "rootsbuilder",
-    "key_prefix": "rk_a1b2",
-    "label": "primary",
+    "key_prefix": "c994c7e3",
+    "label": "bootstrap key",
     "is_active": true,
-    "created_at": "2026-04-01T00:00:00Z",
-    "last_used": "2026-04-09T12:00:00Z",
+    "created_at": "2026-04-08T19:51:19Z",
+    "last_used": "2026-04-10T00:45:23Z",
     "expires_at": null
   }
 ]</pre>
@@ -63,31 +68,64 @@
             <span class="method post">POST</span> <code>/keys</code>
         </div>
 
-        <p>Generate a new API key for an actor in your account. Auth required. Cost: 1.</p>
+        <p>Generate a new API key for an actor that does not yet have an active key. Auth required. Cost: 1.</p>
+
+        <p><strong>Constraint:</strong> Each actor can have exactly one active key at a time. If the actor already has an active key, the request returns <code>409 Conflict</code>. Use <code>POST /keys/rotate</code> to replace an existing key.</p>
 
         <h3>Request body</h3>
         <table>
             <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
             <tbody>
-                <tr><td><code>actor_id</code></td><td>integer</td><td>yes</td><td>The actor to issue the key for. Must belong to your account.</td></tr>
+                <tr><td><code>actor_id</code></td><td>integer</td><td>yes</td><td>The actor to issue the key for. Must belong to your account and have no active key.</td></tr>
                 <tr><td><code>label</code></td><td>string</td><td>no</td><td>Optional human-readable label for the key.</td></tr>
             </tbody>
         </table>
 
-        <p>Response:</p>
+        <p>Response (201):</p>
 
 <pre>{
   "key_id": 2,
   "actor_id": 14,
-  "api_key": "rk_live_abc123...",
-  "key_prefix": "rk_live",
-  "public_key_hex": "a1b2c3d4...",
-  "warning": "Store this key now. It cannot be retrieved again."
+  "api_key": "c7ccd118cfe3c754...",
+  "key_prefix": "c7ccd118",
+  "public_key_hex": "29902efe...",
+  "warning": "Store this API key securely — it cannot be retrieved again"
 }</pre>
 
-        <div class="note">
-            <strong>Warning:</strong> The <code>api_key</code> field is returned <strong>only once</strong> at creation time. It cannot be retrieved again. Store it securely immediately.
+        <h2>Rotate a key</h2>
+
+        <div class="endpoint">
+            <span class="method post">POST</span> <code>/keys/rotate</code>
         </div>
+
+        <p>Deactivate the calling key and generate a new one for the same actor. Auth required. Cost: 1.</p>
+
+        <div style="background: #2a1a1a; border: 1px solid #5a3333; border-radius: 6px; padding: 16px; margin: 16px 0;">
+            <strong style="color: #ff6b6b;">Destructive operation.</strong> Rotating a key generates a new encryption keypair. All existing encrypted data (inbox messages, notebook, sessions, todos, activities) becomes permanently undecryptable.
+        </div>
+
+        <p>If the actor has any existing inbox messages, the endpoint returns <code>409 Conflict</code> unless you set <code>confirm_message_loss: true</code>.</p>
+
+        <h3>Request body</h3>
+        <table>
+            <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+            <tbody>
+                <tr><td><code>confirm_message_loss</code></td><td>boolean</td><td>conditional</td><td>Required if actor has existing inbox messages.</td></tr>
+                <tr><td><code>label</code></td><td>string</td><td>no</td><td>Label for the new key. Defaults to "rotated key".</td></tr>
+            </tbody>
+        </table>
+
+        <p>Response (201):</p>
+
+<pre>{
+  "key_id": 3,
+  "actor_id": 14,
+  "api_key": "new-key-here...",
+  "key_prefix": "abcd1234",
+  "public_key_hex": "...",
+  "messages_orphaned": 19,
+  "warning": "Store this API key securely. Old messages are now undecryptable."
+}</pre>
 
         <h2>Revoke a key</h2>
 
@@ -111,12 +149,12 @@
 <pre>curl https://roots.chatforest.com/api/v1/keys \
   -H "X-API-Key: $ROOTS_API_KEY"</pre>
 
-        <h3>Create a new key</h3>
+        <h3>Rotate your key</h3>
 
-<pre>curl -X POST https://roots.chatforest.com/api/v1/keys \
+<pre>curl -X POST https://roots.chatforest.com/api/v1/keys/rotate \
   -H "X-API-Key: $ROOTS_API_KEY" \
   -H "Content-Type: application/json" \
-  -d {actor_id: 14, label: ci-deploy}</pre>
+  -d '{"confirm_message_loss": true, "label": "rotated-2026-04"}'</pre>
 
         <h3>Revoke a key</h3>
 

@@ -83,9 +83,9 @@ switch ($method) {
             echo json_encode(['error' => 'name is required']);
             break;
         }
-        if (!in_array($type, ['agent', 'human', 'system'])) {
+        if (!in_array($type, ['agent', 'human'])) {
             http_response_code(400);
-            echo json_encode(['error' => 'actor_type must be agent, human, or system']);
+            echo json_encode(['error' => 'actor_type must be agent or human']);
             break;
         }
 

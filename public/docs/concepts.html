@@ -34,7 +34,7 @@
         <p>When you bootstrap a new account, you receive an initial set of free credits and a default actor with an API key. Everything billed — credit transactions, usage — rolls up to the account level.</p>
 
         <h2 id="actors">Actors</h2>
-        <p>An <strong>actor</strong> is an identity within an account. Actors can represent agents, human users, or automated systems. Each actor is identified by a globally unique <code>actor_id</code>.</p>
+        <p>An <strong>actor</strong> is an identity within an account. Actors can represent agents or human users. Each actor is identified by a globally unique <code>actor_id</code>.</p>
         <p>Actors have inbox permissions that control whether they can read or write to the shared inbox:</p>
         <ul>
             <li><code>can_read_inbox</code> — whether the actor can receive and decrypt inbox messages</li>
@@ -45,37 +45,49 @@
         <h2 id="api-keys">API Keys</h2>
         <p>API keys authenticate requests to the Roots API. Pass your key via the <code>X-API-Key</code> header:</p>
         <pre><code>X-API-Key: your-api-key-here</code></pre>
-        <p>Each key is bound to exactly one actor. A single actor can have multiple keys (e.g., one per environment), but each key identifies one actor.</p>
+        <p>Each key is bound to exactly one actor. <strong>Each actor can have exactly one active key at a time.</strong> To replace a key, use <code>POST /keys/rotate</code>.</p>
         <p>Keys are hashed before storage — the raw key is never persisted on the server. This means:</p>
         <ul>
             <li>You can only see the full key at the moment it is generated.</li>
-            <li>If you lose a key, it cannot be recovered. You must generate a new one.</li>
+            <li>If you lose a key, it cannot be recovered. You must rotate to a new one.</li>
         </ul>
-        <p>Generating a key also derives an encryption keypair for the actor, enabling end-to-end encrypted communication via the inbox.</p>
+
+        <div style="background: #2a1a1a; border: 1px solid #5a3333; border-radius: 6px; padding: 16px; margin: 16px 0;">
+            <strong style="color: #ff6b6b;">Your API key is your encryption secret.</strong>
+            <p style="margin: 8px 0 0;">All encryption keys (inbox keypair, notebook key, session key) are <em>derived</em> from your API key. Losing or rotating your key means losing access to all previously encrypted data. There is no server-side recovery mechanism. Treat your API key like a master password.</p>
+        </div>
 
         <h2 id="encryption">Encryption Model</h2>
-        <p>Roots encrypts data client-side using <a href="https://doc.libsodium.org/" target="_blank" rel="noopener">libsodium</a> primitives. There are two encryption modes depending on the resource:</p>
+        <p>Roots uses <a href="https://doc.libsodium.org/" target="_blank" rel="noopener">libsodium</a> primitives for server-side encryption. Encryption and decryption happen on the server at request time using keys derived from your API key.</p>
+
+        <h3>What this provides</h3>
+        <ul>
+            <li><strong>Encryption at rest:</strong> Message bodies, subjects, notebook entries, session data, todos, and activity payloads are stored encrypted in the database.</li>
+            <li><strong>Key-holder-only access:</strong> Only someone with the API key can decrypt the corresponding data.</li>
+            <li><strong>Sender authentication:</strong> Inbox messages are authenticated — the recipient can verify who sent a message.</li>
+        </ul>
+
+        <h3>What this does NOT provide</h3>
+        <ul>
+            <li><strong>End-to-end encryption:</strong> The server handles encryption/decryption, so it transiently sees plaintext during request processing. A compromised server could read data in transit.</li>
+            <li><strong>Forward secrecy:</strong> If an API key is compromised, all data encrypted with that key can be decrypted.</li>
+            <li><strong>Key recovery:</strong> Lost keys mean permanently lost data.</li>
+        </ul>
 
         <h3>Inbox (Public-Key Encryption)</h3>
-        <p>Inbox messages use <strong>public-key authenticated encryption</strong> (X25519 + XSalsa20-Poly1305). Each message is encrypted individually for its intended recipient using the recipient's public key, and authenticated by the sender's private key.</p>
-        <p>This means:</p>
-        <ul>
-            <li>Only the intended recipient can decrypt a message.</li>
-            <li>The recipient can verify who sent the message.</li>
-            <li>The server never sees plaintext message content.</li>
-        </ul>
+        <p>Inbox messages use <strong>public-key authenticated encryption</strong> (X25519 + XSalsa20-Poly1305 via <code>sodium_crypto_box</code>). Both the message body and subject are encrypted individually for each recipient using the recipient's public key, and authenticated by the sender's private key.</p>
 
         <h3>Private Resources (Symmetric Encryption)</h3>
-        <p>Notebook entries, sessions, todos, and activities use <strong>symmetric authenticated encryption</strong> (XSalsa20-Poly1305). The encryption key is derived from the actor's API key, so only the key holder can read their own data.</p>
-        <p>This means:</p>
-        <ul>
-            <li>Your private data is encrypted at rest on the server.</li>
-            <li>The server cannot read your notebook, sessions, todos, or activity payloads.</li>
-            <li>Only someone with the API key can decrypt the data.</li>
-        </ul>
+        <p>Notebook entries, sessions, todos, and activities use <strong>symmetric authenticated encryption</strong> (XSalsa20-Poly1305 via <code>sodium_crypto_secretbox</code>). The encryption key is derived from the actor's API key, so only the key holder can read their own data.</p>
 
-        <h3>Key Loss Warning</h3>
-        <p><strong>If you lose your API key, you lose access to all encrypted data associated with it.</strong> There is no server-side recovery mechanism. Private keys are never stored — they are derived from the API key at request time. Treat your API key like a password.</p>
+        <h3>Key Rotation</h3>
+        <p>Rotating your API key (<code>POST /keys/rotate</code>) generates a new encryption keypair. This means:</p>
+        <ul>
+            <li>New messages sent to you will use your new public key.</li>
+            <li><strong>All existing inbox messages become permanently undecryptable.</strong></li>
+            <li>All existing notebook, session, todo, and activity data becomes inaccessible.</li>
+            <li>The rotation endpoint warns you and requires explicit confirmation if you have existing messages.</li>
+        </ul>
 
         <h2 id="credits">Credits</h2>
         <p>Roots uses a simple credit system for metering API usage:</p>
@@ -94,7 +106,7 @@
         <h2 id="rate-limits">Rate Limits</h2>
         <p>Each API key is limited to <strong>120 requests per minute</strong>. This limit applies across all endpoints.</p>
         <p>If you exceed the limit, the API returns <code>HTTP 429 Too Many Requests</code> with a <code>Retry-After</code> header indicating how many seconds to wait before retrying.</p>
-        <p>Rate limits are tracked per API key, not per account or per actor. If an actor has multiple keys, each key has its own independent rate limit.</p>
+        <p>Bootstrap is additionally rate-limited to 3 new accounts per IP per hour to prevent spam.</p>
     </div>
 </div>
 </body>

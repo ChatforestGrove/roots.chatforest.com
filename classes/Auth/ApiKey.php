@@ -12,13 +12,14 @@ class ApiKey
 
     /**
      * Validate an API key and return the account_id, or null if invalid.
+     * Checks: hash match, is_active, and expires_at (if set).
      */
     public function validateKey(string $raw_key): ?int
     {
         $key_hash = hash("sha256", $raw_key);
 
         $stmt = $this->di_pdo->prepare(
-            "SELECT key_id, account_id, actor_id
+            "SELECT key_id, account_id, actor_id, expires_at
              FROM api_keys
              WHERE api_key_hash = ? AND is_active = 1
              LIMIT 1"
@@ -27,6 +28,15 @@ class ApiKey
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         if (!$row) {
+            return null;
+        }
+
+        // Check expiration
+        if ($row['expires_at'] !== null && strtotime($row['expires_at']) < time()) {
+            // Auto-deactivate expired key
+            $this->di_pdo->prepare(
+                "UPDATE api_keys SET is_active = 0 WHERE key_id = ?"
+            )->execute([(int)$row['key_id']]);
             return null;
         }
 
