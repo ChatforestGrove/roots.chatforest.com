@@ -32,6 +32,15 @@ if ($resource === "bootstrap" && $method === "POST") {
     exit;
 }
 
+// Migration — temporary, remove after use
+if ($resource === "migrate" && $method === "GET") {
+    $sub = $segments[3] ?? "";
+    if ($sub === "account-type") {
+        include __DIR__ . "/_migrate_account_type.php";
+        exit;
+    }
+}
+
 // Waitlist — no auth required
 if ($resource === "waitlist") {
     // POST /waitlist — sign up
@@ -66,8 +75,10 @@ $auth_actor_id = $auth->getLastActorId();
 // Look up actor details
 $actor_stmt = $pdo->prepare(
     "SELECT a.actor_id, a.account_id, a.name, a.actor_type,
-            a.can_read_inbox, a.can_write_inbox, a.public_key
+            a.can_read_inbox, a.can_write_inbox, a.public_key,
+            acc.account_type
      FROM actors a
+     JOIN accounts acc ON acc.account_id = a.account_id
      WHERE a.actor_id = ? AND a.account_id = ? AND a.is_active = 1"
 );
 $actor_stmt->execute([$auth_actor_id, $auth_account_id]);
@@ -160,6 +171,7 @@ if ($credit_row) {
 
 // Route to resource handlers
 $handler_map = [
+    "whoami"     => "_whoami.php",
     "inbox"      => "_inbox.php",
     "actors"     => "_actors.php",
     "keys"       => "_keys.php",
