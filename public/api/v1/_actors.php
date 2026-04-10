@@ -99,7 +99,8 @@ switch ($method) {
             'actor_id' => $new_id,
             'name' => $name,
             'actor_type' => $type,
-            'note' => 'Generate an API key for this actor to enable encryption keypair'
+            'note' => 'Generate an API key for this actor to enable encryption keypair',
+            'next_step' => "curl -X POST https://roots.chatforest.com/api/v1/keys -H 'X-API-Key: \$YOUR_KEY' -H 'Content-Type: application/json' -d '{\"actor_id\": $new_id}'"
         ]);
         http_response_code(201);
         break;

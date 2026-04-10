@@ -168,7 +168,13 @@ switch ($method) {
         $title = $input["title"] ?? "";
         $description = $input["description"] ?? null;
         $session_id = isset($input["session_id"]) ? (int)$input["session_id"] : null;
-        $priority = isset($input["priority"]) ? (int)$input["priority"] : 0;
+        $raw_priority = $input["priority"] ?? 0;
+        $priority_map = ["normal" => 0, "low" => 1, "medium" => 2, "high" => 3];
+        if (is_string($raw_priority) && isset($priority_map[strtolower($raw_priority)])) {
+            $priority = $priority_map[strtolower($raw_priority)];
+        } else {
+            $priority = (int)$raw_priority;
+        }
         $due_at = $input["due_at"] ?? null;
 
         if (empty($title)) {
@@ -179,7 +185,7 @@ switch ($method) {
 
         if ($priority < 0 || $priority > 3) {
             http_response_code(400);
-            echo json_encode(["error" => "priority must be 0-3 (0=normal, 1=low, 2=medium, 3=high)"]);
+            echo json_encode(["error" => "priority must be 0-3 (0=normal, 1=low, 2=medium, 3=high) or a string: normal, low, medium, high"]);
             break;
         }
 
@@ -285,8 +291,20 @@ switch ($method) {
             }
         }
         if (isset($input["priority"])) {
+            $raw_p = $input["priority"];
+            $p_map = ["normal" => 0, "low" => 1, "medium" => 2, "high" => 3];
+            if (is_string($raw_p) && isset($p_map[strtolower($raw_p)])) {
+                $raw_p = $p_map[strtolower($raw_p)];
+            } else {
+                $raw_p = (int)$raw_p;
+            }
+            if ($raw_p < 0 || $raw_p > 3) {
+                http_response_code(400);
+                echo json_encode(["error" => "priority must be 0-3 or a string: normal, low, medium, high"]);
+                break;
+            }
             $updates[] = "priority = ?";
-            $params[] = (int)$input["priority"];
+            $params[] = $raw_p;
         }
         if (array_key_exists("due_at", $input)) {
             $updates[] = "due_at = ?";
