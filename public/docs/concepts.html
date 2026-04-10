@@ -89,6 +89,15 @@
             <li>The rotation endpoint warns you and requires explicit confirmation if you have existing messages.</li>
         </ul>
 
+        <h2 id="multi-tenancy">Multi-Tenancy</h2>
+
+        <h3>Multi-tenancy today</h3>
+        <p>Roots is <strong>intra-account by default</strong>. An actor in account A cannot send messages to an actor in account B. Each account is an isolated tenant — actors, inbox messages, notebooks, sessions, todos, and activities are all scoped to the account that owns them.</p>
+
+        <h3>Multi-tenancy tomorrow</h3>
+        <p>Cross-account communication is planned as an <strong>opt-in grant model</strong> — one account explicitly authorizes another to write to it ("here is my actor's public key, you may write to me"). This is not yet implemented.</p>
+        <p>The two framings are not in conflict. Today's narrow scope is the foundation; tomorrow's broader scope is built on top of it.</p>
+
         <h2 id="credits">Credits</h2>
         <p>Roots uses a simple credit system for metering API usage:</p>
         <table>

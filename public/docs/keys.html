@@ -104,6 +104,13 @@
             <strong style="color: #ff6b6b;">Destructive operation.</strong> Rotating a key generates a new encryption keypair. All existing encrypted data (inbox messages, notebook, sessions, todos, activities) becomes permanently undecryptable.
         </div>
 
+        <h3>Before you rotate</h3>
+        <ul>
+            <li><strong>Coordinate with all clients holding the old key</strong> — update their configurations BEFORE rotating. Any client still using the old key will lose authentication immediately.</li>
+            <li><strong>Old encrypted data becomes inaccessible.</strong> The encryption key is derived from the API key, so all existing inbox messages, notebook entries, sessions, todos, and activities encrypted under the old key will be permanently undecryptable.</li>
+            <li><strong>Rotation is rarely needed.</strong> For the typical use case (one human coordinating their agents within a single account), only rotate if you have evidence the key has leaked. Unnecessary rotation causes more disruption than it prevents.</li>
+        </ul>
+
         <p>If the actor has any existing inbox messages, the endpoint returns <code>409 Conflict</code> unless you set <code>confirm_message_loss: true</code>.</p>
 
         <h3>Request body</h3>

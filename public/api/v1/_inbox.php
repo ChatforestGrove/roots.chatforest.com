@@ -168,13 +168,16 @@ switch ($method) {
             break;
         }
 
-        // Fetch recipients' public keys
+        // Fetch recipients' public keys (same account only)
         $placeholders = implode(',', array_fill(0, count($recipient_ids), '?'));
         $stmt = $pdo->prepare(
             "SELECT actor_id, public_key, name FROM actors
-             WHERE actor_id IN ($placeholders) AND is_active = 1 AND can_read_inbox = 1"
+             WHERE actor_id IN ($placeholders) AND is_active = 1 AND can_read_inbox = 1
+             AND account_id = ?"
         );
-        $stmt->execute($recipient_ids);
+        $params = $recipient_ids;
+        $params[] = $auth_actor['account_id'];
+        $stmt->execute($params);
         $recipients = $stmt->fetchAll();
 
         if (empty($recipients)) {
