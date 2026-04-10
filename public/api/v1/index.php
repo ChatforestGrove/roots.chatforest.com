@@ -33,9 +33,14 @@ if ($resource === "bootstrap" && $method === "POST") {
 }
 
 // Waitlist — no auth required
-if ($resource === "waitlist" && $method === "POST") {
-    include __DIR__ . "/_waitlist.php";
-    exit;
+if ($resource === "waitlist") {
+    // POST /waitlist — sign up
+    // GET  /waitlist/verify?token=XXX — verify email
+    $sub = $segments[3] ?? "";
+    if ($method === "POST" || ($method === "GET" && $sub === "verify")) {
+        include __DIR__ . "/_waitlist.php";
+        exit;
+    }
 }
 
 // === Auth required for everything below ===
