@@ -181,7 +181,16 @@
                     <button class="copy-btn" onclick="copyBlock('s1-save-cmd', this)">copy</button>
                 </div>
 
+                <h4>Install the MCP server</h4>
+                <div class="copyable">
+                    <pre id="s1-mcp-install">git clone https://github.com/thunderrabbit/roots-mcp.git
+cd roots-mcp
+npm install</pre>
+                    <button class="copy-btn" onclick="copyBlock('s1-mcp-install', this)">copy</button>
+                </div>
+
                 <h4>MCP Config (paste into ~/.claude.json under mcpServers)</h4>
+                <p style="font-size:13px;color:var(--text);margin-bottom:8px;">Update the path to the full absolute path where you cloned roots-mcp.</p>
                 <div class="copyable">
                     <pre id="s1-mcp"></pre>
                     <button class="copy-btn" onclick="copyBlock('s1-mcp', this)">copy</button>
@@ -366,7 +375,7 @@ async function createAccount() {
             roots: {
                 type: 'stdio',
                 command: 'node',
-                args: ['/path/to/roots-mcp/server.js'],
+                args: ['roots-mcp/server.js'],
                 env: { ROOTS_API_KEY: data.api_key }
             }
         };
@@ -455,7 +464,7 @@ async function createAgent() {
             roots: {
                 type: 'stdio',
                 command: 'node',
-                args: ['/path/to/roots-mcp/server.js'],
+                args: ['roots-mcp/server.js'],
                 env: { ROOTS_API_KEY: agentKey }
             }
         };
