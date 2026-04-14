@@ -1,6 +1,8 @@
 <?php
+$_PROF = ['start' => microtime(true)];
 preg_match("#^(/home/[^/]+/[^/]+)#", __DIR__, $matches);
 include_once $matches[1] . "/prepend.php";
+$_PROF['after_prepend'] = microtime(true);
 
 header("Content-Type: application/json");
 
@@ -19,10 +21,17 @@ $resource = $segments[2] ?? "";
 $method = $_SERVER["REQUEST_METHOD"];
 
 $pdo = \Database\Base::getPDO($config);
+$_PROF['after_db'] = microtime(true);
 
 // Health check — no auth required
 if ($resource === "health") {
-    echo json_encode(["status" => "ok", "service" => "roots.chatforest.com", "time" => gmdate("c")]);
+    $_PROF['end'] = microtime(true);
+    echo json_encode(["status" => "ok", "service" => "roots.chatforest.com", "time" => gmdate("c"),
+        "_profile" => [
+            "php_boot_ms" => round(($_PROF['after_prepend'] - $_PROF['start']) * 1000, 1),
+            "db_connect_ms" => round(($_PROF['after_db'] - $_PROF['after_prepend']) * 1000, 1),
+            "total_ms" => round(($_PROF['end'] - $_PROF['start']) * 1000, 1),
+        ]]);
     exit;
 }
 
@@ -60,8 +69,10 @@ if (empty($raw_key)) {
     exit;
 }
 
+$_PROF['before_auth'] = microtime(true);
 $auth = new \Auth\ApiKey($pdo);
 $auth_account_id = $auth->validateKey($raw_key);
+$_PROF['after_auth'] = microtime(true);
 
 if ($auth_account_id === null) {
     http_response_code(401);
@@ -213,8 +224,21 @@ $handler_map = [
     "credits"    => "_credits.php",
 ];
 
+$_PROF['before_handler'] = microtime(true);
 if (isset($handler_map[$resource])) {
     include __DIR__ . "/" . $handler_map[$resource];
+    $_PROF['after_handler'] = microtime(true);
+    // Log profile data for analysis
+    $profile = [
+        'php_boot_ms' => round(($_PROF['after_prepend'] - $_PROF['start']) * 1000, 1),
+        'db_connect_ms' => round(($_PROF['after_db'] - $_PROF['after_prepend']) * 1000, 1),
+        'auth_ms' => round(($_PROF['after_auth'] - $_PROF['before_auth']) * 1000, 1),
+        'middleware_ms' => round(($_PROF['before_handler'] - $_PROF['after_auth']) * 1000, 1),
+        'handler_ms' => round(($_PROF['after_handler'] - $_PROF['before_handler']) * 1000, 1),
+        'total_ms' => round(($_PROF['after_handler'] - $_PROF['start']) * 1000, 1),
+    ];
+    $logline = date('c') . ' ' . $method . ' ' . $resource . ' ' . json_encode($profile) . "\n";
+    file_put_contents('/tmp/roots_profile.log', $logline, FILE_APPEND);
 } else {
     http_response_code(404);
     echo json_encode([
