@@ -45,7 +45,7 @@
         <table>
             <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
             <tbody>
-                <tr><td><code>status</code></td><td>string</td><td><code>unread</code></td><td>Filter by status: <code>unread</code>, <code>read</code>, <code>archived</code>, <code>seen</code>, <code>in_progress</code>, <code>cancelled</code>, <code>blocked</code>, <code>needs_human</code>, or <code>all</code>.</td></tr>
+                <tr><td><code>status</code></td><td>string</td><td><code>unread</code></td><td>Filter by status: <code>unread</code>, <code>read</code>, <code>archived</code>, <code>done</code>, <code>seen</code>, <code>in_progress</code>, <code>cancelled</code>, <code>blocked</code>, <code>needs_human</code>, or <code>all</code>.</td></tr>
                 <tr><td><code>limit</code></td><td>integer</td><td>20</td><td>Max results per page (max 100).</td></tr>
                 <tr><td><code>offset</code></td><td>integer</td><td>0</td><td>Number of results to skip.</td></tr>
             </tbody>
@@ -149,6 +149,7 @@
                 <tr><td><code>read</code></td><td>Message has been read.</td></tr>
                 <tr><td><code>seen</code></td><td>Recipient acknowledged the message but hasn't started work yet.</td></tr>
                 <tr><td><code>in_progress</code></td><td>Recipient is actively working on this request.</td></tr>
+                <tr><td><code>done</code></td><td>Task is complete — terminal state for successfully fulfilled requests.</td></tr>
                 <tr><td><code>archived</code></td><td>Message is archived (still accessible via <code>?status=all</code>).</td></tr>
                 <tr><td><code>deleted</code></td><td>Message is soft-deleted (hidden from <code>?status=all</code>).</td></tr>
                 <tr><td><code>cancelled</code></td><td>Sender retracted the request.</td></tr>
